@@ -1,0 +1,111 @@
+version: '3.7'
+
+x-zookeeper-common-env: &x-zookeeper-common-env
+  ZOOKEEPER_SERVERS: zoo1:2888:3888;zoo2:2888:3888;zoo3:2888:3888
+
+x-kafka-common-env: &x-kafka-common-env
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+  KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+  KAFKA_ZOOKEEPER_CONNECT: zoo1:2181,zoo2:2182,zoo3:2183
+  KAFKA_LOG4J_LOGGERS: kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO
+  KAFKA_AUTHORIZER_CLASS_NAME: kafka.security.authorizer.AclAuthorizer
+  KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: true
+
+x-kafka-depends-on: &x-kafka-depends-on
+  depends_on:
+    - zoo1
+    - zoo2
+    - zoo3
+
+x-other-depends-on: &x-other-depends-on
+  depends_on:
+    - kafka1
+    - kafka2
+    - kafka3
+  
+services:
+  zoo1: &zoo
+    image: confluentinc/cp-zookeeper:7.6.0
+    ports:
+      - "2181:2181"
+    environment:
+      <<: *x-zookeeper-common-env
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SERVER_ID: 1
+
+  zoo2:
+    <<: *zoo
+    ports:
+      - "2182:2182"
+    environment:
+      <<: *x-zookeeper-common-env
+      ZOOKEEPER_CLIENT_PORT: 2182
+      ZOOKEEPER_SERVER_ID: 2
+
+  zoo3:
+    <<: *zoo
+    ports:
+      - "2183:2183"
+    environment:
+      <<: *x-zookeeper-common-env
+      ZOOKEEPER_CLIENT_PORT: 2183
+      ZOOKEEPER_SERVER_ID: 3
+
+  kafka1: &kafka
+    image: confluentinc/cp-kafka:7.6.0
+    ports:
+      - "9092:9092"
+    environment:
+      <<: *x-kafka-common-env
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka1:19092,EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9092
+      KAFKA_BROKER_ID: 1
+    <<: *x-kafka-depends-on
+
+  kafka2:
+    <<: *kafka
+    ports:
+      - "9093:9093"
+    environment:
+      <<: *x-kafka-common-env
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka2:19093,EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9093
+      KAFKA_BROKER_ID: 2
+
+  kafka3:
+    <<: *kafka
+    ports:
+      - "9094:9094"
+    environment:
+      <<: *x-kafka-common-env
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka3:19094,EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9094
+      KAFKA_BROKER_ID: 3
+
+  my-kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8282:8080"
+    restart: always
+    environment:
+      KAFKA_CLUSTERS_0_NAME: otus
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:19092,kafka2:19093,kafka3:19094
+    <<: *x-other-depends-on
+
+  ksqldb-server:
+    image: confluentinc/cp-ksqldb-server:7.6.1
+    ports:
+      - "8088:8088"
+    environment:
+      KSQL_LISTENERS: http://0.0.0.0:8088
+      KSQL_BOOTSTRAP_SERVERS: kafka1:19092,kafka2:19093,kafka3:19094
+      KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: "true"
+      KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: "true"
+    <<: *x-other-depends-on
+
+
+  ksqldb-cli:
+    image: confluentinc/cp-ksqldb-cli:7.6.1
+    container_name: ksqldb-cli
+    entrypoint: /bin/sh
+    tty: true
+    <<: *x-other-depends-on
+
+
