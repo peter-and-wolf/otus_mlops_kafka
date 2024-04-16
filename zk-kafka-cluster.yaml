@@ -53,6 +53,7 @@ services:
 
   kafka1: &kafka
     image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka-broker1
     ports:
       - "9092:9092"
     environment:
@@ -63,6 +64,7 @@ services:
 
   kafka2:
     <<: *kafka
+    container_name: kafka-broker2
     ports:
       - "9093:9093"
     environment:
@@ -72,6 +74,7 @@ services:
 
   kafka3:
     <<: *kafka
+    container_name: kafka-broker3
     ports:
       - "9094:9094"
     environment:
