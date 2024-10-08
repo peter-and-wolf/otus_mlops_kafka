@@ -1,8 +1,12 @@
-import faker
-from confluent_kafka import Producer
+import json
+import time
+import random
 
+import typer
+from typing_extensions import Annotated
+from confluent_kafka import Producer # type: ignore
 
-MESSAGE_NUMBER = 12
+import cfg
 
 
 def delivery_report(error, message):
@@ -12,30 +16,42 @@ def delivery_report(error, message):
     print(f'Message delivered to {message.topic()}[{message.partition()}], offset={message.offset()}')
 
 
-if __name__ == '__main__':
+def main(topic: Annotated[str, typer.Option()] = 'payments',
+         limit: Annotated[int | None, typer.Option(min=1)] = None, 
+         timeout: Annotated[float, typer.Option(min=0.)] = .5) -> None:
   
-  f = faker.Faker()
-
-  try:  
+  try:
     producer = Producer({
-      'bootstrap.servers': 'localhost:9092,localhost:9093,localhost:9094',
+      'bootstrap.servers': cfg.BOOTSTRAP_SERVERS,
       'retries': 2,
       'acks': 'all',
       'enable.idempotence': False,
     })
 
-    topic_name = 'names'
+    for _ in cfg.get_range(limit):
+      
+      # Polls the producer for events and 
+      # calls the corresponding callbacks
+      producer.poll(0)
+      
+      # Produce message to topic.
+      producer.produce(
+        topic=topic, 
+        value=json.dumps({
+          'name': random.choice(cfg.NAMES),
+          'amount': random.randint(1, 1000)
+        }), 
+        key=None, 
+        callback=delivery_report
+      )
 
-    for i in range(MESSAGE_NUMBER):
-      producer.produce(topic_name, f'{i}: {f.name()}', key=None, callback=delivery_report)
+      time.sleep(timeout)
 
-    # Serve delivery callback queue.
-    # NOTE: Since produce() is an asynchronous API this poll() call
-    #       will most likely not serve the delivery callback for the
-    #       last produced message.
-    producer.poll(0)
-
-    # Wait until all messages have been delivered
+  finally:
+    # Wait for all messages in the 
+    # Producer queue to be delivered.
     producer.flush()
-  except:
-    print('Have a nive day!')
+
+
+if __name__ == '__main__':
+  typer.run(main)

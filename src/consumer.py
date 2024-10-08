@@ -1,6 +1,10 @@
 import time
 
-from confluent_kafka import Consumer
+import typer
+from typing_extensions import Annotated
+from confluent_kafka import Consumer # type: ignore
+
+import cfg
 
 OFFSET = -1
 MESSAGE_TO_CONSUME = 4
@@ -18,22 +22,26 @@ def on_assign(consumer, partitions):
   
   print('-----')
 
+def main(topic: Annotated[str, typer.Option()] = 'payments',
+         group: Annotated[str, typer.Option()] = 'otus-consumer',
+         limit: Annotated[int | None, typer.Option(min=1)] = None,
+         auto_commit: Annotated[bool, typer.Option()] = False,
+         manual_commit: Annotated[bool, typer.Option()] = True) -> None:
 
-if __name__ == '__main__':
+  condition = cfg.get_condition(limit)
 
   consumer = Consumer({
-    'bootstrap.servers': 'localhost:9092,localhost:9093,localhost:9094',
-    'group.id': 'beatles',
+    'bootstrap.servers': cfg.BOOTSTRAP_SERVERS,
+    'group.id': group,
     'auto.offset.reset': 'earliest', 
-    'enable.auto.commit': True,
+    'enable.auto.commit': auto_commit,
   })
 
   try:
-    consumer.subscribe(['names'], on_assign=on_assign)
+    consumer.subscribe([topic], on_assign=on_assign)
 
-    i = 0
-    while i < MESSAGE_TO_CONSUME:
-
+    num = 0
+    while condition(num):
       msg = consumer.poll(1.0)
 
       if msg is None:
@@ -43,11 +51,15 @@ if __name__ == '__main__':
         continue
 
       print(f'Received message {msg.value().decode("utf-8")} at {msg.offset()}')
-      i += 1
 
-      consumer.commit(asynchronous=False)
-
-  except KeyboardInterrupt:
-    print('Have a nice day!')
+      num += 1
+      
+      if not auto_commit and manual_commit:
+        consumer.commit(asynchronous=False)
+  
   finally:
     consumer.close()
+
+
+if __name__ == '__main__':
+  typer.run(main)
