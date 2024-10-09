@@ -1,6 +1,3 @@
-import time
-from functools import partial
-
 import typer
 from typing_extensions import Annotated
 from confluent_kafka import Consumer # type: ignore
@@ -10,18 +7,19 @@ import cfg
 
 def on_assign(offset: int | None, consumer, partitions):
 
-  print(offset)
-
   if offset is not None and offset >= 0:
+    # for all partitions
     for part in partitions:
+      # force to set offset manually
       part.offset = offset
 
   consumer.assign(partitions)
 
+  print('--- Partitions to consume ---')
   for part in consumer.committed(partitions):
     print(part)
-  
-  print('-----')
+  print('------')
+
 
 def main(topic: Annotated[str, typer.Option()] = 'payments',
          group: Annotated[str, typer.Option()] = 'otus-consumer',
