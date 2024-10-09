@@ -1,12 +1,27 @@
 import json
 import time
 import random
+from enum import Enum
 
 import typer
 from typing_extensions import Annotated
 from confluent_kafka import Producer # type: ignore
 
 import cfg
+
+
+class AckEnum(Enum):
+  no = 'no'
+  one = 'one'
+  all = 'all'
+
+  @property
+  def num_value(self) -> int:
+    return {
+      'no': 0,
+      'one': 1,
+      'all': -1
+    }[self.value]
 
 
 def delivery_report(error, message):
@@ -18,14 +33,17 @@ def delivery_report(error, message):
 
 def main(topic: Annotated[str, typer.Option()] = 'payments',
          limit: Annotated[int | None, typer.Option(min=1)] = None, 
+         idempotence: Annotated[bool, typer.Option()] = False,
+         retries: Annotated[int, typer.Option(min=0)] = 2,
+         acks: Annotated[AckEnum, typer.Option()] = AckEnum.all,
          timeout: Annotated[float, typer.Option(min=0.)] = .5) -> None:
   
   try:
     producer = Producer({
       'bootstrap.servers': cfg.BOOTSTRAP_SERVERS,
-      'retries': 2,
-      'acks': 'all',
-      'enable.idempotence': False,
+      'retries': retries,
+      'acks': acks.num_value,
+      'enable.idempotence': idempotence,
     })
 
     for _ in cfg.get_range(limit):

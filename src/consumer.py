@@ -1,4 +1,5 @@
 import time
+from functools import partial
 
 import typer
 from typing_extensions import Annotated
@@ -6,14 +7,14 @@ from confluent_kafka import Consumer # type: ignore
 
 import cfg
 
-OFFSET = -1
-MESSAGE_TO_CONSUME = 4
 
-def on_assign(consumer, partitions):
+def on_assign(offset: int | None, consumer, partitions):
 
-  if OFFSET >= 0:
+  print(offset)
+
+  if offset is not None and offset >= 0:
     for part in partitions:
-      part.offset = OFFSET
+      part.offset = offset
 
   consumer.assign(partitions)
 
@@ -24,6 +25,7 @@ def on_assign(consumer, partitions):
 
 def main(topic: Annotated[str, typer.Option()] = 'payments',
          group: Annotated[str, typer.Option()] = 'otus-consumer',
+         offset: Annotated[int | None, typer.Option(min=0)] = None,
          limit: Annotated[int | None, typer.Option(min=1)] = None,
          auto_commit: Annotated[bool, typer.Option()] = False,
          manual_commit: Annotated[bool, typer.Option()] = True) -> None:
@@ -38,7 +40,8 @@ def main(topic: Annotated[str, typer.Option()] = 'payments',
   })
 
   try:
-    consumer.subscribe([topic], on_assign=on_assign)
+    consumer.subscribe([topic], 
+      on_assign=lambda c, p: on_assign(offset, c, p))
 
     num = 0
     while condition(num):
