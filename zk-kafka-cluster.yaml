@@ -84,6 +84,7 @@ services:
 
   my-kafka-ui:
     image: provectuslabs/kafka-ui:latest
+    container_name: my-kafka-ui
     ports:
       - "8282:8080"
     restart: always
@@ -94,6 +95,7 @@ services:
 
   ksqldb-server:
     image: confluentinc/cp-ksqldb-server:7.6.1
+    container_name: ksqldb-server
     ports:
       - "8088:8088"
     environment:
