@@ -1,4 +1,3 @@
-version: '3.7'
 
 x-zookeeper-common-env: &x-zookeeper-common-env
   ZOOKEEPER_SERVERS: zoo1:2888:3888;zoo2:2888:3888;zoo3:2888:3888
@@ -24,8 +23,8 @@ x-other-depends-on: &x-other-depends-on
     - kafka3
   
 services:
-  zoo1: &zoo
-    image: confluentinc/cp-zookeeper:7.6.0
+  zoo1:
+    image: &x-zoo-image confluentinc/cp-zookeeper:7.6.0
     ports:
       - "2181:2181"
     environment:
@@ -34,7 +33,7 @@ services:
       ZOOKEEPER_SERVER_ID: 1
 
   zoo2:
-    <<: *zoo
+    image: *x-zoo-image
     ports:
       - "2182:2182"
     environment:
@@ -43,7 +42,7 @@ services:
       ZOOKEEPER_SERVER_ID: 2
 
   zoo3:
-    <<: *zoo
+    image: *x-zoo-image
     ports:
       - "2183:2183"
     environment:
@@ -51,8 +50,8 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2183
       ZOOKEEPER_SERVER_ID: 3
 
-  kafka1: &kafka
-    image: confluentinc/cp-kafka:7.6.0
+  kafka1:
+    image: &x-kafka-image confluentinc/cp-kafka:7.6.0
     container_name: kafka-broker1
     ports:
       - "9092:9092"
@@ -63,7 +62,7 @@ services:
     <<: *x-kafka-depends-on
 
   kafka2:
-    <<: *kafka
+    image: *x-kafka-image
     container_name: kafka-broker2
     ports:
       - "9093:9093"
@@ -73,7 +72,7 @@ services:
       KAFKA_BROKER_ID: 2
 
   kafka3:
-    <<: *kafka
+    image: *x-kafka-image
     container_name: kafka-broker3
     ports:
       - "9094:9094"
@@ -103,6 +102,7 @@ services:
       KSQL_BOOTSTRAP_SERVERS: kafka1:19092,kafka2:19093,kafka3:19094
       KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: "true"
       KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: "true"
+      KSQL_CONFLUENT_SUPPORT_METRICS_ENABLE: "false"
     <<: *x-other-depends-on
 
 
