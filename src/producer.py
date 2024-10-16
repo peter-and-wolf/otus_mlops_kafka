@@ -35,7 +35,7 @@ def main(topic: Annotated[str, typer.Option()] = 'payments',
          limit: Annotated[int | None, typer.Option(min=1)] = None, 
          idempotence: Annotated[bool, typer.Option()] = False,
          retries: Annotated[int, typer.Option(min=0)] = 2,
-         acks: Annotated[AckEnum, typer.Option()] = AckEnum.all,
+         acks: Annotated[AckEnum, typer.Option()] = AckEnum.no,
          timeout: Annotated[float, typer.Option(min=0.)] = .5) -> None:
   
   try:
